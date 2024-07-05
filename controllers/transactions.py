@@ -22,6 +22,7 @@ transactions_routes = Blueprint("transactions_routes", __name__)
 Session = sessionmaker(connection)
 s = Session()
 
+
 @transactions_routes.route("/transactions", methods=["GET"])
 def getAll_transaction():
     try:
@@ -57,7 +58,7 @@ def getAll_transaction():
 
 
 @transactions_routes.route("/transactions/<id>", methods=["GET"])
-# @jwt_required()
+@jwt_required()
 def get_transactions_by_id(id):
     try:
         s = Session()
@@ -84,7 +85,7 @@ def get_transactions_by_id(id):
 
 
 @transactions_routes.route("/transaction/deposit", methods=["POST"])
-# @login_required
+@jwt_required()
 def create_transaction_deposit():
     Session = sessionmaker(connection)
     session = Session()
@@ -123,7 +124,7 @@ def create_transaction_deposit():
 
 
 @transactions_routes.route("/transaction/withdrawal", methods=["POST"])
-# @login_required
+@jwt_required()
 def create_transaction_withdrawal():
     Session = sessionmaker(connection)
     session = Session()
