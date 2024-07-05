@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 
 from connectors.mysql_connector import connection
 from models.transaction import Transaction
+from models.account import Account
+
 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
@@ -13,16 +15,17 @@ from flask_jwt_extended import (
     unset_jwt_cookies,
     get_jwt,
 )
+from sqlalchemy.orm.exc import NoResultFound
 
 
 transactions_routes = Blueprint("transactions_routes", __name__)
 Session = sessionmaker(connection)
 s = Session()
 
-
-@transactions_routes.route("/transactions", methods=['GET'])
+@transactions_routes.route("/transactions", methods=["GET"])
 def getAll_transaction():
     try:
+        s = Session()
         transaction_query = select(Transaction)
 
         search_keyword = request.args.get("query")
@@ -45,35 +48,7 @@ def getAll_transaction():
                 }
             )
 
-        return {"Accounts": transactions}, 200
-
-    except Exception as e:
-        print(e)
-        s.rollback()
-        return {"message": "Unexpected Error"}, 500
-
-
-@transactions_routes.route("/transactions/<id>", methods=["GET"])
-@jwt_required()
-def get_transactions_by_id(id):
-    try:
-        transactions = s.query(Transaction).filter(Transaction.id == id).all()
-
-        if not transactions:
-            return jsonify({"message": "No transaction found for this user"}), 404
-
-        transactions_list = []
-        for transaction in transactions:
-            account_details = {
-                "id": transaction.id,
-                "from_account_id": transaction.from_account_id,
-                "to_account_id": transaction.to_account_id,
-                "amount": transaction.amount,
-                "type": transaction.type,
-            }
-            transactions_list.append(account_details)
-
-        return jsonify({"accounts": transactions_list}), 200
+        return jsonify({"Transactions": transactions}), 200
 
     except Exception as e:
         print(e)
@@ -81,69 +56,106 @@ def get_transactions_by_id(id):
         return jsonify({"message": "Unexpected Error"}), 500
 
 
-from flask import request, jsonify
-
-
-@transactions_routes.route("/transactions", methods=["POST"])
+@transactions_routes.route("/transactions/<id>", methods=["GET"])
 # @jwt_required()
-def create_transaction():
+def get_transactions_by_id(id):
     try:
-        # Extracting data from request form
-        from_account_id = request.form.get("from_account_id")
-        to_account_id = request.form.get("to_account_id")
-        amount = request.form.get("amount")
-        transaction_type = request.form.get("type")
-        description = request.form.get("description")
+        s = Session()
+        transaction = s.query(Transaction).filter(Transaction.id == id).first()
 
-        if not all([from_account_id, to_account_id, amount, transaction_type]):
-            return {"message": "Missing required fields"}, 400
+        if not transaction:
+            return jsonify({"message": "No transaction found for this user"}), 404
 
-        # Convert amount to decimal if needed
-        amount = float(amount)  # Assuming amount is in string format from form data
+        # Ubah format respons untuk satu transaksi
+        transaction_details = {
+            "id": transaction.id,
+            "from_account_id": transaction.from_account_id,
+            "to_account_id": transaction.to_account_id,
+            "amount": transaction.amount,
+            "type": transaction.type,
+        }
 
-        if transaction_type == "deposit":
-            # Deposit: Add amount to 'to_account_id'
-            new_transaction = Transaction(
-                to_account_id=to_account_id,
-                amount=amount,
-                type="deposit",
-                description=description,
-            )
-
-            # Perform additional actions for deposit (e.g., add amount to account)
-
-        elif transaction_type == "transfer":
-            # Transfer: Subtract amount from 'from_account_id' and add to 'to_account_id'
-            new_transaction = Transaction(
-                from_account_id=from_account_id,
-                to_account_id=to_account_id,
-                amount=amount,
-                type="transfer",
-                description=description,
-            )
-
-            # Perform additional actions for transfer (e.g., subtract amount from sender account)
-
-        elif transaction_type == "withdraw":
-            # Withdraw: Subtract amount from 'from_account_id'
-            new_transaction = Transaction(
-                from_account_id=from_account_id,
-                amount=amount,
-                type="withdraw",
-                description=description,
-            )
-
-            # Perform additional actions for withdraw (e.g., subtract amount from account)
-
-        else:
-            return {"message": "Invalid transaction type"}, 400
-
-        s.add(new_transaction)
-        s.commit()
-
-        return {"message": "Transaction created successfully"}, 201
+        return jsonify({"transaction": transaction_details}), 200
 
     except Exception as e:
         print(e)
         s.rollback()
-        return {"message": "Unexpected Error"}, 500
+        return jsonify({"message": "Unexpected Error"}), 500
+
+
+@transactions_routes.route("/transaction/deposit", methods=["POST"])
+# @login_required
+def create_transaction_deposit():
+    Session = sessionmaker(connection)
+    session = Session()
+
+    try:
+        from_account_id = request.form.get("from_account_id")
+        to_account_id = request.form.get("to_account_id")
+        amount = request.form.get("amount")
+
+        if not to_account_id or not amount:
+            raise ValueError("Please fill in 'to_account_id' and 'amount'")
+
+        new_deposit_transaction = Transaction(
+            from_account_id=from_account_id,
+            to_account_id=to_account_id,
+            amount=amount,
+            type="deposit",
+            description="sending funds",
+        )
+
+        session.add(new_deposit_transaction)
+        session.commit()
+
+        return {"message": "succes"}, 200
+
+    except Exception as e:
+        return (
+            jsonify(
+                {"error": "Failed to make a deposit transaction", "message": str(e)}
+            ),
+            500,
+        )
+
+    finally:
+        session.close()
+
+
+@transactions_routes.route("/transaction/withdrawal", methods=["POST"])
+# @login_required
+def create_transaction_withdrawal():
+    Session = sessionmaker(connection)
+    session = Session()
+
+    try:
+        from_account_id = request.form.get("from_account_id")
+        to_account_id = request.form.get("to_account_id")
+        amount = request.form.get("amount")
+
+        if not from_account_id or not amount:
+            raise ValueError("Please fill in 'from_account_id' and 'amount'")
+
+        new_withdrawal_transaction = Transaction(
+            from_account_id=from_account_id,
+            to_account_id=to_account_id,
+            amount=amount,
+            type="withdrawal",
+            description="withdrawing funds",
+        )
+
+        session.add(new_withdrawal_transaction)
+        session.commit()
+
+        return {"message": "success"}, 200
+
+    except Exception as e:
+        return (
+            jsonify(
+                {"error": "Failed to make a withdrawal transaction", "message": str(e)}
+            ),
+            500,
+        )
+
+    finally:
+        session.close()
