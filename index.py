@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 
 from flask_jwt_extended import JWTManager
+from controllers.transactions import transactions_routes
 
 
 load_dotenv()
@@ -25,6 +26,7 @@ jwt = JWTManager(app)
 
 app.register_blueprint(users_routes)
 app.register_blueprint(accounts_routes)
+app.register_blueprint(transactions_routes)
 
 Session = sessionmaker(connection)
 

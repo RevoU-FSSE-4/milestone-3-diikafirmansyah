@@ -10,7 +10,7 @@ class Account(Base):
     __tablename__ = "accounts"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
-    users_id = mapped_column(Integer, ForeignKey("users.id"))
+    user_id = mapped_column(Integer, ForeignKey("users.id"))
     account_type = mapped_column(VARCHAR(255), nullable=False)
     account_number = mapped_column(VARCHAR(255), unique=True)
     balance = mapped_column(DECIMAL(10, 2))

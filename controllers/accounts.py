@@ -11,7 +11,7 @@ from flask_jwt_extended import (
     jwt_required,
     get_jwt_identity,
     unset_jwt_cookies,
-    get_jwt,    
+    get_jwt,
 )
 
 accounts_routes = Blueprint("accounts_routes", __name__)
@@ -39,7 +39,7 @@ def get_allAccount():
                 accounts.append(
                     {
                         "id": row.id,
-                        "user_id": row.users_id,
+                        "user_id": row.user_id,
                         "account_type": row.account_type,
                         "account_number": row.account_number,
                         "balance": row.balance,
@@ -61,7 +61,7 @@ def get_allAccount():
 @jwt_required()
 def get_accounts_by_user_id(user_id):
     try:
-        accounts = s.query(Account).filter(Account.users_id == user_id).all()
+        accounts = s.query(Account).filter(Account.user_id == user_id).all()
 
         if not accounts:
             return jsonify({"message": "No accounts found for this user"}), 404
@@ -70,7 +70,7 @@ def get_accounts_by_user_id(user_id):
         for account in accounts:
             account_details = {
                 "id": account.id,
-                "user_id": account.users_id,
+                "user_id": account.user_id,
                 "account_type": account.account_type,
                 "account_number": account.account_number,
                 "balance": account.balance,
@@ -90,7 +90,7 @@ def register_account():
     s.begin
     try:
         NewAccount = Account(
-            users_id=request.form["users_id"],
+            user_id=request.form["users_id"],
             account_type=request.form["account_type"],
             account_number=request.form["account_number"],
             balance=request.form["balance"],
@@ -122,19 +122,19 @@ def update_account(id):
 
         s.commit()
 
-        return jsonify({"message": "Account updated successfully"}), 200
-
     except Exception as e:
         print(e)
         s.rollback()
         return jsonify({"message": "Unexpected Error"}), 500
 
+    return jsonify({"message": "Account updated successfully"}), 200
 
-@accounts_routes.route("/accounts/<user_id>", methods=["DELETE"])
+
+@accounts_routes.route("/accounts/<id>", methods=["DELETE"])
 @jwt_required()
-def delete_account_by_user_id(user_id):
+def delete_account_by_id(id):
     try:
-        accounts = s.query(Account).filter(Account.users_id == user_id).all()
+        accounts = s.query(Account).filter(Account.id == id).all()
 
         if not accounts:
             return jsonify({"message": "No accounts found for this user"}), 404
